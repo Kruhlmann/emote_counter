@@ -3,6 +3,21 @@ const fs = require("fs");
 const request = require("request");
 const mysql = require("mysql");
 const credentials = require("./credentials");
+const express = require("express");
+const path = require("path");
+
+// Create express app for serving user interface
+var app = express();
+app.use(express.static("public"));
+// Simple route to static content
+//app.get("/", function(req, res){
+//    res.sendFile(path.join(__dirname + "/views/index.html"));
+//});
+
+// Start express server
+var server = app.listen(3000, function(){
+    console.log("Server started on port 3000");
+});
 
 // Establish database connection
 var conn = mysql.createConnection({

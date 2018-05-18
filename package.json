@@ -4,12 +4,16 @@
   "description": "An emote counter for channels on twitch.tv",
   "main": "main.js",
   "dependencies": {
+    "connect": "^3.6.6",
     "crypto": "^1.0.1",
+    "ejs": "^2.6.1",
+    "express": "^4.16.3",
     "fs": "0.0.1-security",
     "irc": "^0.5.2",
     "mysql": "^2.15.0",
     "node-mysql": "^0.4.2",
     "request": "^2.86.0",
+    "serve-static": "^1.13.2",
     "twitch-bot": "^1.2.5"
   },
   "devDependencies": {},
