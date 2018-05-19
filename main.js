@@ -101,7 +101,7 @@ var update_emote_library = function(conn){
     var json = JSON.parse(fs.readFileSync("global_emotes.json"));
     if (json === []) throw "Error loading global emotes from file";
     for (var emote in json){
-        q(sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, 1)", [emote]), conn);
+        register_emote(emote, 2, conn);
     }
 }
 update_emote_library(conn);
@@ -150,11 +150,34 @@ var run_bot = function(channels, conn) {
     })
 }
 
+// Register an emote in the emote database and return its assigned id.
+// @param {String} key - The emote name.
+// @param {Number} type - The emote type.
+// @param {MySQLConnection} conn - The database connection object.
+// @return {int} - The id of the inserted row.
+var register_emote = function(key, type, conn){
+    var sql = sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, ?); SELECT `id` FROM `emote_database` WHERE `key`=?;", [key, type, key]);
+    console.log(sql);
+}
+register_emote("gachiGASM",2,conn);
+
+// Track a new emote in a channel.
+// @param {String} key - The emote name.
+// @param {String} channel - The channel where the tracking applies.
+// @param {MySQLConnection} - The database connection object.
+var track_emote = function(key, channel, conn){
+    //var sql = sqlstring.format("INSERT IGNORE INTO ? ());
+}
+
 // Gather tracked channels from the database and start the bot
 conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
     if (error) throw error;
     // Starts the bot with channels pulled from database mapped from JSON to array
-    run_bot(result.map(function(el) {
-        return el.name;
-    }), conn);
+    var channels = result.map(function(e1){ return e1.name; });
+    // Before running the bot, the BTTV channel specific emotes must be loaded.
+    for (var channel in channels){
+        var url = "https://api.betterttv.net/2/channels/" + channel;
+
+    }
+    run_bot(channels, conn);
 });
