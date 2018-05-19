@@ -8,6 +8,9 @@ const express = require("express");
 const path = require("path");
 const sqlstring = require("sqlstring");
 
+// Local packages
+const parser = require("./parser");
+
 // User defined consts
 const credentials = require("./credentials");
 const bttv_api_path = "https://twitch.center/customapi/bttvemotes?channel=";
@@ -155,7 +158,6 @@ var run_bot = function(channels, conn) {
 
     Bot.on('join', channel => {
         add_channel(channel, conn);
-        track_emote("EZ", "#atomicus", conn, Bot.say);
         console.log(`Joined channel: ${channel}`);
     })
 
@@ -187,6 +189,8 @@ var run_bot = function(channels, conn) {
 
 // Update emote library before starting the bot
 update_emote_library(conn);
+
+parser.parse("!count 4Head");
 
 // Gather tracked channels from the database and start the bot
 conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
