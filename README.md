@@ -18,3 +18,5 @@ On Linux/OSX
 sudo chmod +x start.sh
 ./start.sh
 ```
+## Usage
+Once your channel has been added to the tracked channels use the syntax `!count <emote>` in twitch chat to get the number of times the emote has been used while the channel was tracked.
