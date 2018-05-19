@@ -56,6 +56,25 @@ var q = function(sql, conn, supress) {
     });
 }
 
+// Register an emote in the emote database and return its assigned id.
+// @param {String} key - The emote name.
+// @param {Number} type - The emote type.
+// @param {MySQLConnection} conn - The database connection object.
+// @return {int} - The id of the inserted row.
+var register_emote = function(key, type, conn){
+    var sql = sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, ?); SELECT `id` FROM `emote_database` WHERE `key`=?;", [key, type, key]);
+    console.log(sql);
+}
+register_emote("gachiGASM",2,conn);
+
+// Track a new emote in a channel.
+// @param {String} key - The emote name.
+// @param {String} channel - The channel where the tracking applies.
+// @param {MySQLConnection} - The database connection object.
+var track_emote = function(key, channel, conn){
+    //var sql = sqlstring.format("INSERT IGNORE INTO ? ());
+}
+
 // Creates a database for a channel.
 // @param {String} channel - The name of the channel.
 // @param {MySQLConnection} - The database connection object.
@@ -148,25 +167,6 @@ var run_bot = function(channels, conn) {
             }
         }
     })
-}
-
-// Register an emote in the emote database and return its assigned id.
-// @param {String} key - The emote name.
-// @param {Number} type - The emote type.
-// @param {MySQLConnection} conn - The database connection object.
-// @return {int} - The id of the inserted row.
-var register_emote = function(key, type, conn){
-    var sql = sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, ?); SELECT `id` FROM `emote_database` WHERE `key`=?;", [key, type, key]);
-    console.log(sql);
-}
-register_emote("gachiGASM",2,conn);
-
-// Track a new emote in a channel.
-// @param {String} key - The emote name.
-// @param {String} channel - The channel where the tracking applies.
-// @param {MySQLConnection} - The database connection object.
-var track_emote = function(key, channel, conn){
-    //var sql = sqlstring.format("INSERT IGNORE INTO ? ());
 }
 
 // Gather tracked channels from the database and start the bot
