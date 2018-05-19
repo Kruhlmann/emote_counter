@@ -9,11 +9,11 @@ cd emote_counter
 npm install
 ```
 ## Running
-To run the bot on windows do
+To run the bot on Windows do
 ```
 start.bat
 ```
-On Linux
+On Linux/OSX
 ```
 sudo chmod +x start.sh
 ./start.sh
