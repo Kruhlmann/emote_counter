@@ -1,10 +1,16 @@
+"use strict";
+// Packages
 const TwitchBot = require('twitch-bot');
 const fs = require("fs");
 const request = require("request");
 const mysql = require("mysql");
-const credentials = require("./credentials");
 const express = require("express");
 const path = require("path");
+const sqlstring = require("sqlstring");
+
+// User defined consts
+const credentials = require("./credentials");
+const bttv_api_path = "https://twitch.center/customapi/bttvemotes?channel=";
 
 // Create express app for serving user interface
 var app = express();
@@ -13,8 +19,10 @@ app.use(express.static("public"));
 //app.get("/", function(req, res){
 //    res.sendFile(path.join(__dirname + "/views/index.html"));
 //});
+//
+//app.get("/")
 
-// Start express server
+// Start express server on port 3000
 var server = app.listen(3000, function(){
     console.log("Server started on port 3000");
 });
@@ -28,17 +36,29 @@ var conn = mysql.createConnection({
 });
 conn.connect();
 
+// Gets channel specific emotes
+//var get_channel_bttv_emotes(channel, callback){
+//    request(bttv_api_path + channel, function(error, response, body) {
+//        callback(error, response, body);
+//    });
+//}
+
 // Simplified function for making database queries, which do not require results
+// @param {String} sql - Query string to perform.
+// @param {MySQLConnection} conn - The database connection object.
+// @param {Boolean} supress - Will supress any MySQL errors if true
 var q = function(sql, conn, supress) {
     return conn.query(sql, function(error, results, fields) {
-        if (error) {
-            if (!supress) console.log("An error occured with the following SQL query: " + sql);
+        if (error && !supress) {
+            console.log("An error occured with the following SQL query: " + sql);
             throw error;
         }
     });
 }
 
-// Creates a database for a channel
+// Creates a database for a channel.
+// @param {String} channel - The name of the channel.
+// @param {MySQLConnection} - The database connection object.
 var add_channel = function(channel, conn) {
     var sql = "CREATE TABLE IF NOT EXISTS `gyj5xqc9_emote_counter`.`" + channel + "` (`emote` VARCHAR(255) NOT NULL , `count` INT(11) NOT NULL DEFAULT '0' , PRIMARY KEY (`emote`)) ENGINE = MyISAM;";
     var res = conn.query(sql, function(error, results, fields) {
@@ -47,13 +67,13 @@ var add_channel = function(channel, conn) {
             throw error;
         }
     })
-    for (emote in global_emote_json) {
-        q("INSERT IGNORE INTO `" + channel + "` (`emote`, `count`) VALUES ('" + emote + "', 0)", conn, true);
-    }
 }
 
 // Adds one to the counter of an emote in the database
 // If the emote is not present in the database it will be added
+// @param {String} key - The identifier of the emote.
+// @param {string] channel - The channel to apply the incrementation to.
+// @param {MySQLConnection} - The database connection object.
 var increment_emote = function(key, channel, conn) {
     var sql = "INSERT INTO `" + channel + "` (`emote`, `count`) VALUES ('" + key + "', 1) ON DUPLICATE KEY UPDATE count = count + 1";
     var res = q(sql, conn);
@@ -63,14 +83,32 @@ var increment_emote = function(key, channel, conn) {
 // The result is stored in the global_emotes.json file
 // In the future this should be done at an interval, maybe every hour
 // That way new emotes are continuesly integrated without needing a restart of the service
-var global_emote_url = "https://twitchemotes.com/api_cache/v3/global.json";
-var res = request(global_emote_url);
-res.on("response", function() {
-    res.pipe(fs.createWriteStream("global_emotes.json"));
-});
-var global_emote_json = JSON.parse(fs.readFileSync("global_emotes.json"));
+// @param {String} filename  - Filename for the stored data.
+// @param {Boolean} rm - Remove the file once data has been loaded.
+var get_global_emotes = function(filename, rm){
+    var res = request(global_emote_url);
+    res.on("response", function() {
+        res.pipe(fs.createWriteStream(filename));
+    });
+    var json =  JSON.parse(fs.readFileSync("global_emotes.json"));
+    if(rm) fs.unlink(filename);
+    return json;
+}
+
+// Updates the library of emotes with fresh data from the APIs.
+// @param {MySQLConnection} conn - The database connection object.
+var update_emote_library = function(conn){
+    var json = JSON.parse(fs.readFileSync("global_emotes.json"));
+    if (json === []) throw "Error loading global emotes from file";
+    for (var emote in json){
+        q(sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, 1)", [emote]), conn);
+    }
+}
+update_emote_library(conn);
 
 // Starts the bot
+// @param {String[]} channels - An array of channels to monitor.
+// @param {MySQLConnection} conn - The database connection object.
 var run_bot = function(channels, conn) {
     // Bot configuration
     // You can get your OAuth token for your Twitch account here:
@@ -113,7 +151,7 @@ var run_bot = function(channels, conn) {
 }
 
 // Gather tracked channels from the database and start the bot
-var channels = conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
+conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
     if (error) throw error;
     // Starts the bot with channels pulled from database mapped from JSON to array
     run_bot(result.map(function(el) {
