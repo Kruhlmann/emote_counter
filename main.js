@@ -60,20 +60,33 @@ var q = function(sql, conn, supress) {
 // @param {String} key - The emote name.
 // @param {Number} type - The emote type.
 // @param {MySQLConnection} conn - The database connection object.
+// @param {Function} callback - The callback function to call when the query exits.
 // @return {int} - The id of the inserted row.
-var register_emote = function(key, type, conn){
+var register_emote = function(key, type, conn, callback){
     var sql = sqlstring.format("INSERT IGNORE INTO `emote_database` (`key`, `type`) VALUES (?, ?); SELECT `id` FROM `emote_database` WHERE `key`=?;", [key, type, key]);
-    console.log(sql);
+    conn.query(sql, function(error, result, fields){
+        if(callback !== undefined) callback(result);
+    });
 }
-register_emote("gachiGASM",2,conn);
 
 // Track a new emote in a channel.
 // @param {String} key - The emote name.
 // @param {String} channel - The channel where the tracking applies.
 // @param {MySQLConnection} - The database connection object.
-var track_emote = function(key, channel, conn){
-    //var sql = sqlstring.format("INSERT IGNORE INTO ? ());
+// @Param {TwitchBot} - The twitch IRC bot.
+var track_emote = function(key, channel, conn, bot){
+    channel = sqlstring.escapeId(channel);
+    var sql = "SELECT `emote_database`.`id` FROM " + channel + " INNER JOIN `emote_database` ON `emote_database`.`key`=" + channel + ".`emote` WHERE " + channel + ".`emote`=" + sqlstring.escape(key) + ";";
+    console.log(sql);
+    conn.query(sql, function(error, result, fields){
+        if(error) throw error;
+        if(result[0] != undefined) bot.say("I'm already tracking " + key + ".");
+        else{ 
+            
+        }
+    });
 }
+track_emote("4Head", "#atomicus", conn);
 
 // Creates a database for a channel.
 // @param {String} channel - The name of the channel.
