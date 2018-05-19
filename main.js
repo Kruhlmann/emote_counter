@@ -73,20 +73,23 @@ var register_emote = function(key, type, conn, callback){
 // @param {String} key - The emote name.
 // @param {String} channel - The channel where the tracking applies.
 // @param {MySQLConnection} - The database connection object.
-// @Param {TwitchBot} - The twitch IRC bot.
-var track_emote = function(key, channel, conn, bot){
+// @param {Function} callback - Will be called with a message depending on the tracking state.
+var track_emote = function(key, channel, conn, callback){
+    // Escape input
     channel = sqlstring.escapeId(channel);
-    var sql = "SELECT `emote_database`.`id` FROM " + channel + " INNER JOIN `emote_database` ON `emote_database`.`key`=" + channel + ".`emote` WHERE " + channel + ".`emote`=" + sqlstring.escape(key) + ";";
-    console.log(sql);
+    key = sqlstring.escape(key);
+    var sql = "SELECT `emote_database`.`id` FROM " + channel + " INNER JOIN `emote_database` ON `emote_database`.`key`=" + channel + ".`emote` WHERE " + channel + ".`emote`=" + key + ";";
     conn.query(sql, function(error, result, fields){
         if(error) throw error;
-        if(result[0] != undefined) bot.say("I'm already tracking " + key + ".");
-        else{ 
-            
+        // An id present means the emote is being tracked
+        if(result[0] != undefined) callback("I'm already tracking " + key + ".");
+        else{
+            var track_sql = "INSERT IGNORE INTO " + channel + " (`emote`, `count`) VALUES (" + key + ", 1)";
+            q(track_sql, conn);
+            callback("I started tracking " + key + ".");    
         }
     });
 }
-track_emote("4Head", "#atomicus", conn);
 
 // Creates a database for a channel.
 // @param {String} channel - The name of the channel.
@@ -136,7 +139,6 @@ var update_emote_library = function(conn){
         register_emote(emote, 2, conn);
     }
 }
-update_emote_library(conn);
 
 // Starts the bot
 // @param {String[]} channels - An array of channels to monitor.
@@ -153,6 +155,7 @@ var run_bot = function(channels, conn) {
 
     Bot.on('join', channel => {
         add_channel(channel, conn);
+        track_emote("EZ", "#atomicus", conn, Bot.say);
         console.log(`Joined channel: ${channel}`);
     })
 
@@ -181,6 +184,9 @@ var run_bot = function(channels, conn) {
         }
     })
 }
+
+// Update emote library before starting the bot
+update_emote_library(conn);
 
 // Gather tracked channels from the database and start the bot
 conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
