@@ -159,14 +159,18 @@ var run_bot = function(channels, conn) {
     Bot.on('join', channel => {
         add_channel(channel, conn);
         console.log(`Joined channel: ${channel}`);
-    })
+    
+    });
 
     Bot.on('error', err => {
         console.log(err);
-    })
+    });
 
     // Main message handler
     Bot.on('message', chatter => {
+        console.log("> [" + chatter.channel + "] " + chatter.username + ": " + chatter.message);
+        if(chatter.message.startsWith("!")) parser.parse(chatter.message, chatter.channel, chatter.username,  Bot, conn)
+        return;
         if (chatter.message.startsWith("!count")) {
             var emote = chatter.message.replace("!count", "").replace(/\s/g, '');
             conn.query("SELECT `count` FROM `" + chatter.channel + "` WHERE `emote`='" + emote + "'", function(error, result) {
@@ -184,13 +188,11 @@ var run_bot = function(channels, conn) {
                 if (chatter.message.includes(emote)) increment_emote(emote, chatter.channel, conn);
             }
         }
-    })
+    });
 }
 
 // Update emote library before starting the bot
 update_emote_library(conn);
-
-parser.parse("!count 4Head");
 
 // Gather tracked channels from the database and start the bot
 conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
