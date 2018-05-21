@@ -49,6 +49,8 @@ do
         mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_ffz_query"
         index=$((index+1))
     done
+    # Done with the file, delete it
+    rm "$name-ffz.json"
 done
 
 
