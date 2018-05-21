@@ -11,12 +11,12 @@ var count = function(username, channel, conn, args, bot){
     var registered_sql = "SELECT `count` FROM " + sqlstring.escapeId(channel) + " WHERE `emote`=" +  sqlstring.escape(emote);
     console.log(registered_sql);
     conn.query(registered_sql, function(error, result){
-        bot.say(emote + " has been used " + result[0].count + " times.");
+        console.log(emote + " has been used " + result[0].count + " times.");
     });
     if(emote_is_registered){
         var sql = ""
     }else{
-        bot.say("Oof! " + emote + " is not registered as an emote. If you want to track it type !track " + emote + ".");
+        console.log("Oof! " + emote + " is not registered as an emote. If you want to track it type !track " + emote + ".");
     }
 }
 
