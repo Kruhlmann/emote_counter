@@ -1,7 +1,9 @@
 #!/bin/bash
 echo "Updating emote database please wait..."
+
 # Download global twitch emotes
 curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json"
+
 # Extract MySQL credentials from credentials.json
 mysql_password=`grep -o 'password: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
 mysql_user=`grep -o 'user: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
@@ -14,7 +16,12 @@ then
     exit 3
 fi
 
-sudo mysql -u $mysql_user -p"$mysql_password" -D $mysql_database -h 127.0.0.1
+# Quotes ruins themysql command so all variables have their double quotes removed.
+mysql -N -u "${mysql_user//\"}" -p"${mysql_password//\"}" -D "${mysql_database//\"}" -h "${mysql_host//\"}" -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
+do
+    echo $name
+    curl -o "$name-bttv.json" "https://api.betterttv.net/2/channels/$name"
+done
 
 
 
