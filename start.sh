@@ -16,11 +16,19 @@ then
     exit 3
 fi
 
+
 # Quotes ruins themysql command so all variables have their double quotes removed.
 mysql -N -u "${mysql_user//\"}" -p"${mysql_password//\"}" -D "${mysql_database//\"}" -h "${mysql_host//\"}" -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
 do
+    # Do this for each channel registered
     echo $name
     curl -o "$name-bttv.json" "https://api.betterttv.net/2/channels/$name"
+    # Get an array of all emotes from the file
+    emotes=(`grep -o '"code": *"[^"]*"' $name-bttv.json | grep -o '"[^"]*"$'`)
+    for i in "${emotes[@]}"
+    do
+        echo $i | tr -d '\"'
+    done
 done
 
 
