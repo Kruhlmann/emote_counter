@@ -1,6 +1,9 @@
 "use strict";
 const sqlstring = require("sqlstring");
 
+var get_tracked_emotes = function(){
+}
+
 var count = function(username, channel, conn, args, bot){
     if(args.length < 1) return "Usage !count <emote>";
     var emote = args[0];
