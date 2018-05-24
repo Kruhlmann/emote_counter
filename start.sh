@@ -93,7 +93,6 @@ while [ "$1" != "" ]; do
 
                 # Clean-up
                 rm global_emotes.json
-                exit
                 ;;
             *)
                 echo "Error: Unknown param \"$PARAM\""

@@ -18,10 +18,13 @@ const bttv_api_path = "https://twitch.center/customapi/bttvemotes?channel=";
 
 // Create express app for serving user interface
 var app = express();
+app.use(express.static("public"));
 // Simple route to static content
-app.get("/", function(req, res){
-    res.sendFile(path.join(__dirname + "/views/index.html"));
-});
+//app.get("/", function(req, res){
+//    res.sendFile(path.join(__dirname + "/views/index.html"));
+//});
+//
+//app.get("/")
 
 // Start express server on port 3000
 var server = app.listen(3000, function(){
@@ -36,6 +39,13 @@ var conn = mysql.createConnection({
     database: credentials.database,
 });
 conn.connect();
+
+// Gets channel specific emotes
+//var get_channel_bttv_emotes(channel, callback){
+//    request(bttv_api_path + channel, function(error, response, body) {
+//        callback(error, response, body);
+//    });
+//}
 
 // Simplified function for making database queries, which do not require results
 // @param {String} sql - Query string to perform.
