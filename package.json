@@ -4,6 +4,7 @@
   "description": "An emote counter for channels on twitch.tv",
   "main": "main.js",
   "dependencies": {
+    "colors": "^1.3.0",
     "connect": "^3.6.6",
     "crypto": "^1.0.1",
     "ejs": "^2.6.1",

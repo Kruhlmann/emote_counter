@@ -1,22 +1,15 @@
 "use strict";
 const sqlstring = require("sqlstring");
 
-var get_tracked_emotes = function(){
-}
-
 var count = function(username, channel, conn, args, bot){
     if(args.length < 1) return "Usage !count <emote>";
     var emote = args[0];
     var emote_is_registered = true;
     var registered_sql = "SELECT `count` FROM " + sqlstring.escapeId(channel) + " WHERE `emote`=" +  sqlstring.escape(emote);
     conn.query(registered_sql, function(error, result){
-        console.log(emote + " has been used " + result[0].count + " times.");
+        if(result[0] == undefined) bot.say("Oof! " + emote + " is not registered as an emote.", channel);
+        else bot.say(emote + " has been used " + result[0].count + " times.", channel);
     });
-    if(emote_is_registered){
-        var sql = ""
-    }else{
-        console.log("Oof! " + emote + " is not registered as an emote. If you want to track it type !track " + emote + ".");
-    }
 }
 
 module.exports = {
@@ -30,8 +23,6 @@ module.exports = {
         var args = message.split(" ");
         var command = args[0];
         args = args.slice(1);
-        console.log("Command " + command);
-        console.log("Args " + args);
         switch(command){
             case "!count":
                 count(user, channel, conn, args, bot);
@@ -39,7 +30,7 @@ module.exports = {
             case "!track":
                 break;
             case "!help":
-                bot.say("Yikes! There's nothign here, yet.")
+                bot.say("Yikes! There's nothign here, yet.", channel)
             default:
                 break;
         }

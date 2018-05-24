@@ -54,7 +54,7 @@ do
     done
     # Done with the file, delete it
     rm "$name-bttv.json"
-    echo -e "\e[32mDone\e[0m"
+    echo -e " \e[32mDone\e[0m"
     
     # FFZ
     curl -o "$name-ffz.json" "https://api.frankerfacez.com/v1/room/$name" > /dev/null 2>&1
@@ -77,12 +77,11 @@ do
     # Done with the file, delete it
     rm "$name-ffz.json"
 
-    echo -e "\e[32mDone\e[0m"
+    echo -e " \e[32mDone\e[0m"
 done
 
 # Clean-up
 rm global_emotes.json
 
 # Start the bot
-exit 1
 node main.js

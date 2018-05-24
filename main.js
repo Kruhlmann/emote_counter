@@ -7,6 +7,7 @@ const mysql = require("mysql");
 const express = require("express");
 const path = require("path");
 const sqlstring = require("sqlstring");
+const colors = require("colors");
 
 // Local packages
 const parser = require("./parser");
@@ -142,7 +143,7 @@ var run_bot = function(channels, conn) {
 
     Bot.on('join', channel => {
         add_channel(channel, conn);
-        console.log(`Joined channel: ${channel}`);
+        console.log("Joined channel: " + channel.cyan);
     });
 
     Bot.on('error', err => {
@@ -151,29 +152,24 @@ var run_bot = function(channels, conn) {
 
     // Main message handler
     Bot.on('message', chatter => {
-        console.log("> [" + chatter.channel + "] " + chatter.username + ": " + chatter.message);
+        console.log("[" + chatter.channel.cyan + "] " + chatter.username.green + ": " + chatter.message);
         if(chatter.message.startsWith("!")) parser.parse(chatter.message, chatter.channel, chatter.username,  Bot, conn)
-        return;
-        if (chatter.message.startsWith("!count")) {
-            var emote = chatter.message.replace("!count", "").replace(/\s/g, '');
-            conn.query("SELECT `count` FROM `" + chatter.channel + "` WHERE `emote`='" + emote + "'", function(error, result) {
-                if (error) {
-                    Bot.say("OOF! I got an error. Maybe " + emote + " isn't an emote?");
-                    console.log(error);
-                } else {
-                    if (result[0] == undefined) Bot.say(emote + " is not registered as an emote.");
-                    else Bot.say(emote + " has been used " + result[0].count + " times.");
+        else {
+            // If the message is not a command then scan the message for emotes and increment and results.
+            var channel_emotes_sql = "SELECT `emote` FROM " + sqlstring.escapeId(chatter.channel) + " WHERE 1";
+            conn.query(channel_emotes_sql, function(error, result){
+                if(error) throw error;
+                for(var i in result){
+                    var emote = result[i]["emote"];
+                    // The checks here make sure the emote is properly typed, so as not to count false positives.
+                    // Every emote must be contained within spaces in the message or at the end/start of the string.
+                    if(chatter.message.startsWith(emote + " ") || chatter.message == emote || chatter.message.endsWith(" " + emote) || chatter.message.includes(" " + emote + " ")){
+                        increment_emote(emote, chatter.channel, conn);
+                    }
                 }
             });
-        } else {
-            // Don't increment the emote count if it's used for a !count assesment
-            for (emote in global_emote_json) {
-                if (chatter.message.includes(emote)) increment_emote(emote, chatter.channel, conn);
-            }
         }
     });
-
-    parser.parse("!count FeelsOkayMan", "#atomicus", "gasolinebased", Bot, conn);
 }
 
 // Gather tracked channels from the database and start the bot
