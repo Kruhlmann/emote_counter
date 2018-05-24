@@ -159,7 +159,6 @@ var run_bot = function(channels, conn) {
     Bot.on('join', channel => {
         add_channel(channel, conn);
         console.log(`Joined channel: ${channel}`);
-    
     });
 
     Bot.on('error', err => {
@@ -189,6 +188,8 @@ var run_bot = function(channels, conn) {
             }
         }
     });
+
+    parser.parse("!count FeelsOkayMan", "#atomicus", "gasolinebased", Bot, conn);
 }
 
 // Update emote library before starting the bot

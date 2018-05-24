@@ -4,22 +4,31 @@ echo "Updating emote database please wait..."
 # Download global twitch emotes
 curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json"
 
-# Extract MySQL credentials from credentials.json
+# extract mysql credentials from credentials.json
 mysql_password=`grep -o 'password: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
 mysql_user=`grep -o 'user: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
 mysql_database=`grep -o 'database: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
 mysql_host=`grep -o 'host: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
-# Check if any fields are empty
+# check if any fields are empty
 if [ -z "$mysql_password" ] || [ -z "$mysql_user" ] || [ -z "$mysql_database" ] || [ -z "$mysql_host" ]
 then
-    echo "Error: please fill in the credentials.js file"
+    echo "error: please fill in the credentials.js file"
     exit 3
 fi
 
-# Download and improt FFZ and BTTV emotes from their respective APIs
+# Download and import FFZ and BTTV emotes from their respective APIs, as well as the global emotes.
 # Quotes ruin the mysql command so all variables have their double quotes removed.
 mysql -N -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
 do
+    # Global
+    # File is the same for all channels so there's no need to download it again
+    global_emotes=(`grep -o '"code":*"[^"]*"' global_emotes.json | grep -o '"[^"]*"$'`)
+    for i in "${global_emotes[@]}"
+    do
+            register_global_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('$i//\"}', 0)"
+            mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_sql"
+    done
+
     # BTTV
     curl -o "$name-bttv.json" "https://api.betterttv.net/2/channels/$name"
     # Get an array of all emotes from the file
@@ -56,5 +65,4 @@ done
 
 
 # Start the bot
-exit 1
 node main.js

@@ -9,7 +9,6 @@ var count = function(username, channel, conn, args, bot){
     var emote = args[0];
     var emote_is_registered = true;
     var registered_sql = "SELECT `count` FROM " + sqlstring.escapeId(channel) + " WHERE `emote`=" +  sqlstring.escape(emote);
-    console.log(registered_sql);
     conn.query(registered_sql, function(error, result){
         console.log(emote + " has been used " + result[0].count + " times.");
     });
@@ -42,7 +41,6 @@ module.exports = {
             case "!help":
                 bot.say("Yikes! There's nothign here, yet.")
             default:
-                bot.say("Oof! " + command + " is not a command. Try !help for a list of commands.");
                 break;
         }
     }
