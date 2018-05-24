@@ -1,8 +1,9 @@
 #!/bin/bash
 echo "Updating emote database please wait..."
 
-# Download global twitch emotes
-curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json"
+# Download global twitch emotes and TTV emotes
+curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json" > /dev/null 2>&1
+curl -o "global_bttv_emotes.json" "https://api.betterttv.net/2/emotes/" > /dev/null 2>&1
 
 # extract mysql credentials from credentials.json
 mysql_password=`grep -o 'password: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
@@ -17,35 +18,50 @@ then
 fi
 
 # Download and import FFZ and BTTV emotes from their respective APIs, as well as the global emotes.
-# Quotes ruin the mysql command so all variables have their double quotes removed.
+# Quotes ruin the mysql command so all arguments have their double quotes removed.
 mysql -N -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
 do
+    echo -e "Importing emotes for channel \e[0;36m$name\e[0m"
+    # Global BTTV
+    echo -n -e "\tBTTV global emotes..."
+    global_bttv_emotes=(`grep -o '"code":*"[^"]*"' global_bttv_emotes.json | grep -o '"[^"]*"$'`)
+    for i in "${global_bttv_emotes[@]}"
+    do
+        register_global_bttv_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
+        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_bttv_sql" > /dev/null 2>&1
+    done
+    echo -e " \e[32mDone\e[0m"
+    
     # Global
-    # File is the same for all channels so there's no need to download it again
+    echo -n -e "\tTwitch global emotes..."
     global_emotes=(`grep -o '"code":*"[^"]*"' global_emotes.json | grep -o '"[^"]*"$'`)
     for i in "${global_emotes[@]}"
     do
-            register_global_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('$i//\"}', 0)"
-            mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_sql"
+            register_global_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
+            mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_sql" > /dev/null 2>&1
     done
+    echo -e " \e[32mDone\e[0m"
 
     # BTTV
-    curl -o "$name-bttv.json" "https://api.betterttv.net/2/channels/$name"
+    curl -o "$name-bttv.json" "https://api.betterttv.net/2/channels/$name" > /dev/null 2>&1
+    echo -n -e "\tBTTV channel emotes..."
     # Get an array of all emotes from the file
     bttv_emotes=(`grep -o '"code": *"[^"]*"' $name-bttv.json | grep -o '"[^"]*"$'`)
     for i in "${bttv_emotes[@]}"
     do
         register_bttv_query="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
-        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_bttv_query"
+        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_bttv_query" > /dev/null 2>&1
     done
     # Done with the file, delete it
     rm "$name-bttv.json"
-
+    echo -e "\e[32mDone\e[0m"
+    
     # FFZ
-    curl -o "$name-ffz.json" "https://api.frankerfacez.com/v1/room/$name"
+    curl -o "$name-ffz.json" "https://api.frankerfacez.com/v1/room/$name" > /dev/null 2>&1
     # Get an array of all emotes from the file and loop through them
     ffz_emotes=`grep -o '"name": *"[^"]*"' $name-ffz.json | grep -o '"[^"]*"$'`
     index=0
+    echo -n -e "\tFFZ channel emotes..."
     for i in ${ffz_emotes[@]}
     do
         # The FFZ JSON result comes with two fields using the identifier "name". Each emtoe is associated with two name fields. Therefore we skip every other occurence, since thwy are not valid emotes.
@@ -55,14 +71,18 @@ do
             continue
         fi
         register_ffz_query="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
-        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_ffz_query"
+        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_ffz_query" > /dev/null 2>&1
         index=$((index+1))
     done
     # Done with the file, delete it
     rm "$name-ffz.json"
+
+    echo -e "\e[32mDone\e[0m"
 done
 
-
+# Clean-up
+rm global_emotes.json
 
 # Start the bot
+exit 1
 node main.js
