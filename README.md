@@ -13,7 +13,7 @@ To run the bot on Windows do
 ```
 start.bat
 ```
-On Linux/OSX
+On Linux
 ```
 sudo chmod +x start.sh
 ./start.sh --update-cache
