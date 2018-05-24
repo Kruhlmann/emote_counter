@@ -117,22 +117,6 @@ var increment_emote = function(key, channel, conn) {
     var res = q(sql, conn);
 };
 
-// Grab updated global emote data from API
-// The result is stored in the global_emotes.json file
-// In the future this should be done at an interval, maybe every hour
-// That way new emotes are continuesly integrated without needing a restart of the service
-// @param {String} filename  - Filename for the stored data.
-// @param {Boolean} rm - Remove the file once data has been loaded.
-var get_global_emotes = function(filename, rm){
-    var res = request(global_emote_url);
-    res.on("response", function() {
-        res.pipe(fs.createWriteStream(filename));
-    });
-    var json =  JSON.parse(fs.readFileSync("global_emotes.json"));
-    if(rm) fs.unlink(filename);
-    return json;
-}
-
 // Updates the library of emotes with fresh data from the APIs.
 // @param {MySQLConnection} conn - The database connection object.
 var update_emote_library = function(conn){
@@ -191,9 +175,6 @@ var run_bot = function(channels, conn) {
 
     parser.parse("!count FeelsOkayMan", "#atomicus", "gasolinebased", Bot, conn);
 }
-
-// Update emote library before starting the bot
-update_emote_library(conn);
 
 // Gather tracked channels from the database and start the bot
 conn.query("SELECT `name` FROM tracked_channels", function(error, result) {
