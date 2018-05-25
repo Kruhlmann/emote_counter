@@ -8,6 +8,7 @@ const express = require("express");
 const path = require("path");
 const sqlstring = require("sqlstring");
 const colors = require("colors");
+const phantom = require("phantom");
 
 // Local packages
 const parser = require("./parser");
@@ -18,13 +19,39 @@ const bttv_api_path = "https://twitch.center/customapi/bttvemotes?channel=";
 
 // Create express app for serving user interface
 var app = express();
+// User interface
 app.use(express.static("public"));
-// Simple route to static content
-//app.get("/", function(req, res){
-//    res.sendFile(path.join(__dirname + "/views/index.html"));
-//});
-//
-//app.get("/")
+// User interface API
+app.get("/api/channel_exists/:channel", function(req, res){
+    var channel = req.params.channel;
+    // This css class is used for the image on twitch channel 404 pages. If it is present the channel does not exist or is banned/suspended.
+    var magic = "tw-svg__asset tw-svg__asset--deadglitch tw-svg__asset--inherit";
+    
+    (async function() {
+        const instance = await phantom.create();
+        const page = await instance.createPage();
+        await page.on("onResourceRequested", function(requestData) {
+            console.info('Requesting', requestData.url)
+        });
+
+        const status = await page.open('https://twitch.tv/' + channel);
+        console.log(status);
+
+        const content = await page.property('content');
+        console.log(content);
+        await instance.exit();
+    }());
+
+    request("https://twitch.tv/" + channel, function(error, response, body){
+        
+        res.json({
+            "error": error,
+            "status": response.statusCode,
+            "channel_exists": !body.includes(magic),
+            "body": body
+        });
+    });
+});
 
 // Start express server on port 3000
 var server = app.listen(3000, function(){
@@ -39,13 +66,6 @@ var conn = mysql.createConnection({
     database: credentials.database,
 });
 conn.connect();
-
-// Gets channel specific emotes
-//var get_channel_bttv_emotes(channel, callback){
-//    request(bttv_api_path + channel, function(error, response, body) {
-//        callback(error, response, body);
-//    });
-//}
 
 // Simplified function for making database queries, which do not require results
 // @param {String} sql - Query string to perform.
@@ -95,19 +115,6 @@ var track_emote = function(key, channel, conn, callback){
     });
 }
 
-// Creates a database for a channel.
-// @param {String} channel - The name of the channel.
-// @param {MySQLConnection} - The database connection object.
-var add_channel = function(channel, conn) {
-    var sql = "CREATE TABLE IF NOT EXISTS `gyj5xqc9_emote_counter`.`" + channel + "` (`emote` VARCHAR(255) NOT NULL , `count` INT(11) NOT NULL DEFAULT '0' , PRIMARY KEY (`emote`)) ENGINE = MyISAM;";
-    var res = conn.query(sql, function(error, results, fields) {
-        if (error) {
-            console.log("An error occured with the following SQL query: " + sql);
-            throw error;
-        }
-    })
-}
-
 // Adds one to the counter of an emote in the database
 // If the emote is not present in the database it will be added
 // @param {String} key - The identifier of the emote.
@@ -117,16 +124,6 @@ var increment_emote = function(key, channel, conn) {
     var sql = "INSERT INTO `" + channel + "` (`emote`, `count`) VALUES ('" + key + "', 1) ON DUPLICATE KEY UPDATE count = count + 1";
     var res = q(sql, conn);
 };
-
-// Updates the library of emotes with fresh data from the APIs.
-// @param {MySQLConnection} conn - The database connection object.
-var update_emote_library = function(conn){
-    var json = JSON.parse(fs.readFileSync("global_emotes.json"));
-    if (json === []) throw "Error loading global emotes from file";
-    for (var emote in json){
-        register_emote(emote, 2, conn);
-    }
-}
 
 // Starts the bot
 // @param {String[]} channels - An array of channels to monitor.
@@ -142,7 +139,6 @@ var run_bot = function(channels, conn) {
     });
 
     Bot.on('join', channel => {
-        add_channel(channel, conn);
         console.log("Joined channel: " + channel.cyan);
     });
 

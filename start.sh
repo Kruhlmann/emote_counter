@@ -1,5 +1,4 @@
 #!/bin/bash
-echo "Updating emote database please wait..."
 
 # Download global twitch emotes and TTV emotes
 curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json" > /dev/null 2>&1
@@ -16,17 +15,22 @@ while [ "$1" != "" ]; do
             exit
             ;;
         --update-cache)
-                # extract mysql credentials from credentials.json
+                # Extract mysql credentials from credentials.json
+                echo "Updating emote database please wait..."
                 mysql_password=`grep -o 'password: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_user=`grep -o 'user: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_database=`grep -o 'database: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_host=`grep -o 'host: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
-                # check if any fields are empty
+                # Check if any fields are empty
                 if [ -z "$mysql_password" ] || [ -z "$mysql_user" ] || [ -z "$mysql_database" ] || [ -z "$mysql_host" ]
                 then
                     echo "error: please fill in the credentials.js file"
-                    exit 3
+                    exit 1
                 fi
+
+                # Make sure all tracked channels have tables associated with them.
+                channel_sql="CREATE TABLE IF NOT EXISTS \`#$name\` (\`emote\` VARCHAR(255) NOT NULL, \`count\` INT(11) NOT NULL DEFAULT '0', PRIMARY KEY (\`emote\`)) ENGINE = MyISAM;"
+                mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$channel_sql"
 
                 # Download and import FFZ and BTTV emotes from their respective APIs, as well as the global emotes.
                 # Quotes ruin the mysql command so all arguments have their double quotes removed.
