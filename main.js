@@ -34,6 +34,8 @@ app.get("/api/channel_exists/:channel", function(req, res){
             console.info('Requesting', requestData.url)
         });
 
+        await page.on("onLoadFinished", function(status){})
+
         const status = await page.open('https://twitch.tv/' + channel);
         console.log(status);
 

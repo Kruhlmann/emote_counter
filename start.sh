@@ -21,8 +21,11 @@ while [ "$1" != "" ]; do
                 mysql_user=`grep -o 'user: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_database=`grep -o 'database: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_host=`grep -o 'host: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
+                client_id=`grep -o 'client_id: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
+                client_secret=`grep -o 'client_secret: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
+                
                 # Check if any fields are empty
-                if [ -z "$mysql_password" ] || [ -z "$mysql_user" ] || [ -z "$mysql_database" ] || [ -z "$mysql_host" ]
+                if [ -z "$mysql_password" ] || [ -z "$mysql_user" ] || [ -z "$mysql_database" ] || [ -z "$mysql_host" ] || [ -z "$client_id" ] || [ -z "$client_secret" ]
                 then
                     echo "error: please fill in the credentials.js file"
                     exit 1
@@ -37,6 +40,15 @@ while [ "$1" != "" ]; do
                 mysql -N -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
                 do
                     echo -e "Importing emotes for channel \e[0;36m$name\e[0m"
+                    # Check if the channel actually exists
+
+                    # For some reason piping the json data directly into a variable doesn't work. Instead I'm just going to save the file lcoally and then read json from it.
+                    curl -o ${name//\"}-meta.json -i -H 'Accept: application/vnd.twitchtv.v3+json' -H 'Client-ID: ${client_id//\"}' 'https://api.twitch.tv/kraken/channels/${name//\"}'
+                    error_404=`grep -o '"error": *"[^"]*"' ${name//\"}-meta.json | grep -o '"[^"]*"$'`
+                    remote_name=`grep -o '"name": *"[^"]*"' ${name//\"}-meta.json | grep -o '"[^"]*"$'`
+                    echo "$error_404"
+                    echo "$remote_name"
+
                     # Global BTTV
                     echo -n -e "\tBTTV global emotes..."
                     global_bttv_emotes=(`grep -o '"code":*"[^"]*"' global_bttv_emotes.json | grep -o '"[^"]*"$'`)
@@ -105,4 +117,5 @@ while [ "$1" != "" ]; do
             shift
     done
 # Start the bot
+echo -e "\e[34mStarting Node.JS\e[0m"
 node main.js
