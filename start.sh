@@ -1,11 +1,9 @@
 #!/bin/bash
 
-function strip {
-    cmd="temp=\${$1%\\\"}"
-    eval echo $cmd
-    echo $temp
-    temp="${temp#\"}"
-    eval echo "$1=$temp"
+function log {
+    current_date_time=`date "+%Y-%m-%d %H:%M:%S"`
+    message=$1
+    echo "[$current_date_time] $message" >> .log
 }
 
 # Download global twitch emotes and TTV emotes
@@ -23,8 +21,12 @@ while [ "$1" != "" ]; do
             exit
             ;;
         --update-cache)
+                # Clear log file
+                rm .log
+                touch .log
+                log "Launched"
+
                 # Extract mysql credentials from credentials.json
-                echo "Updating emote database please wait..."
                 mysql_password=`grep -o 'password: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_user=`grep -o 'user: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
                 mysql_database=`grep -o 'database: *"[^"]*"' credentials.js | grep -o '"[^"]*"$'`
@@ -40,13 +42,13 @@ while [ "$1" != "" ]; do
                 fi
                 echo -e "\e[32mMySQL connection established\e[0m"
                 
-                # Setup error counting
-                ecount = 0
-
                 # Download and import FFZ and BTTV emotes from their respective APIs, as well as the global emotes.
                 # Quotes ruin the mysql command so all arguments have their double quotes removed.
                 mysql -N -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
                 do
+                    # Error counting
+                    ecount=0
+
                     echo -e "Configuring \e[0;36m#$name\e[0m"
                     
                     echo -n -e "\tCreating table...\t\e[93m[WORK]\e[0m"
@@ -73,7 +75,7 @@ while [ "$1" != "" ]; do
                         # The remote_name variable will bbe empty if there's an error in the API request.
                         echo -e "\r\tValidating channel...\t\e[91m[FAIL]\e[0m"
                         echo -e "\t \e[91mSkipped channel #{$name//\"}, see the .log file for additional information"
-                        echo -e "An error occurred while validating channel #${name//\"}. The variable \$remote_name was assigned the value \'${remote_name//\"}\'. The program was expecting a non-empty string. Twitch API provided the follwing error message: \'${error_res//\"}\'" >> .log
+                        log "An error occurred while validating channel #${name//\"}. The variable \$remote_name was assigned the value \'${remote_name//\"}\'. The program was expecting a non-empty string. Twitch API provided the follwing error message: \'${error_res//\"}\'"
                         continue
                     fi
                     echo -e "\r\tValidating channel...\t\e[92m[DONE]\e[0m"
@@ -87,7 +89,7 @@ while [ "$1" != "" ]; do
                         # Throws errors into the .log file and increments the error counter
                         if [[ $res == ERROR* ]]
                         then
-                            echo "$res" > .log
+                            log "$res"
                             ecount=$((ecount + 1))
                         fi
                     done
@@ -98,11 +100,11 @@ while [ "$1" != "" ]; do
                     do
                             register_global_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
                             res=`mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_sql" 2>&1 | grep -v "Warning: Using a password"`
-                            # Throws errors into the .log file and increments the error counter
                             
+                            # Throws errors into the .log file and increments the error counter
                             if [[ $res == ERROR* ]]
                             then
-                                echo "$res" > .log
+                                log "$res"
                                 ecount=$((ecount + 1))
                             fi
                     done
@@ -114,7 +116,14 @@ while [ "$1" != "" ]; do
                     for i in "${bttv_emotes[@]}"
                     do
                         register_bttv_query="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
-                        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_bttv_query" > /dev/null 2>&1
+                        res=`mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_bttv_query" 2>&1 | grep -v "Warning: Using a password"`
+
+                        # Throws errors into the .log file and increments the error counter
+                        if [[ $res == ERROR* ]]
+                        then
+                            log "$res"
+                            ecount=$((ecount + 1))
+                        fi
                     done
                     # Done with the file, delete it
                     
@@ -132,7 +141,15 @@ while [ "$1" != "" ]; do
                             continue
                         fi
                         register_ffz_query="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
-                        mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_ffz_query" > /dev/null 2>&1
+                        res=`mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_ffz_query" 2>&1 | grep -v "Warning: Using a password"`
+
+                        # Throws errors into the .log file and increments the error counter
+                        if [[ $res == ERROR* ]]
+                        then
+                            log "$res"
+                            ecount=$((ecount + 1))
+                        fi
+
                         index=$((index+1))
                     done
                     # Done with the file, delete it
