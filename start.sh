@@ -84,7 +84,9 @@ while [ "$1" != "" ]; do
                     global_bttv_emotes=(`grep -o '"code":*"[^"]*"' global_bttv_emotes.json | grep -o '"[^"]*"$'`)
                     for i in "${global_bttv_emotes[@]}"
                     do
-                        register_global_bttv_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${i//\"}', 0)"
+                        # Some emotes carry single quotes in them which need to be escaped for MySQL
+                        esc_i=$(echo $i | sed "s/'/\\\'/g")
+                        register_global_bttv_sql="INSERT IGNORE INTO \`#$name\` (\`emote\`, \`count\`) VALUES ('${esc_i//\"}', 0)"
                         res=`mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$register_global_bttv_sql" 2>&1 | grep -v "Warning: Using a password"`
                         # Throws errors into the .log file and increments the error counter
                         if [[ $res == ERROR* ]]
