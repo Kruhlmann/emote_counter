@@ -1,5 +1,13 @@
 #!/bin/bash
 
+function strip {
+    cmd="temp=\${$1%\\\"}"
+    eval echo $cmd
+    echo $temp
+    temp="${temp#\"}"
+    eval echo "$1=$temp"
+}
+
 # Download global twitch emotes and TTV emotes
 curl -o "global_emotes.json" "https://twitchemotes.com/api_cache/v3/global.json" > /dev/null 2>&1
 curl -o "global_bttv_emotes.json" "https://api.betterttv.net/2/emotes/" > /dev/null 2>&1
@@ -30,25 +38,44 @@ while [ "$1" != "" ]; do
                     echo "error: please fill in the credentials.js file"
                     exit 1
                 fi
-
-                # Make sure all tracked channels have tables associated with them.
-                channel_sql="CREATE TABLE IF NOT EXISTS \`#$name\` (\`emote\` VARCHAR(255) NOT NULL, \`count\` INT(11) NOT NULL DEFAULT '0', PRIMARY KEY (\`emote\`)) ENGINE = MyISAM;"
-                mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$channel_sql"
+                echo -e "\e[32mMySQL connection established\e[0m"
+                
 
                 # Download and import FFZ and BTTV emotes from their respective APIs, as well as the global emotes.
                 # Quotes ruin the mysql command so all arguments have their double quotes removed.
                 mysql -N -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "SELECT \`name\` FROM \`tracked_channels\` WHERE 1" | while read name
                 do
-                    echo -e "Importing emotes for channel \e[0;36m$name\e[0m"
+                    echo -e "Configuring \e[0;36m#$name\e[0m"
+                    
+                    echo -n -e "\tCreating table..."
+                    # Make sure all tracked channels have tables associated with them.
+                
+                    channel_sql="CREATE TABLE IF NOT EXISTS \`#$name\` (\`emote\` VARCHAR(255) NOT NULL, \`count\` INT(11) NOT NULL DEFAULT '0', PRIMARY KEY (\`emote\`)) ENGINE = MyISAM;"
+                    mysql -u ${mysql_user//\"} -p${mysql_password//\"} -D ${mysql_database//\"} -h ${mysql_host//\"} -e "$channel_sql" > /dev/null 2>&1
+                    echo -e " \e[32mDone\e[0m"
+
                     # Check if the channel actually exists
 
                     # For some reason piping the json data directly into a variable doesn't work. Instead I'm just going to save the file lcoally and then read json from it.
-                    curl -o ${name//\"}-meta.json -i -H 'Accept: application/vnd.twitchtv.v3+json' -H 'Client-ID: ${client_id//\"}' 'https://api.twitch.tv/kraken/channels/${name//\"}'
-                    error_404=`grep -o '"error": *"[^"]*"' ${name//\"}-meta.json | grep -o '"[^"]*"$'`
+                    eval "curl -o ${name//\"}-meta.json -i -H 'Accept: application/vnd.twitchtv.v3+json' -H 'Client-ID: ${client_id//\"}' 'https://api.twitch.tv/kraken/channels/${name//\"}' > /dev/null 2>&1"
+                    #echo -e "\e[32m`cat ${name//\"}-meta.json`\e[0m"
+                    error_res=`grep -o '"error": *"[^"]*"' ${name//\"}-meta.json | grep -o '"[^"]*"$'`
                     remote_name=`grep -o '"name": *"[^"]*"' ${name//\"}-meta.json | grep -o '"[^"]*"$'`
-                    echo "$error_404"
-                    echo "$remote_name"
+                    
+                    # File cleanup
+                    rm "${name//\"}-meta.json"
 
+                    echo -e -n "\tValidating channel..."
+                    # Report channel existance
+                    if [ -z "$remote_name" ]
+                    then
+                        # The remote_name variable will bbe empty if there's an error in the API request.
+                        echo -e " \e[91mFailed\e[0m"
+                        echo -e "\t \e[91mSkipped channel #{$name//\"}, see the .log file for additional information"
+                        echo -e "An error occurred while validating channel #${name//\"}. The variable \$remote_name was assigned the value \'${remote_name//\"}\'. The program was expecting a non-empty string. Twitch API provided the follwing error message: \'${error_res//\"}\'" >> .log
+                        continue
+                    fi
+                    echo -e " \e[32mDone\e[0m"
                     # Global BTTV
                     echo -n -e "\tBTTV global emotes..."
                     global_bttv_emotes=(`grep -o '"code":*"[^"]*"' global_bttv_emotes.json | grep -o '"[^"]*"$'`)
@@ -117,5 +144,5 @@ while [ "$1" != "" ]; do
             shift
     done
 # Start the bot
-echo -e "\e[34mStarting Node.JS\e[0m"
+echo -e "\e[33mStarting Node.JS\e[0m"
 node main.js

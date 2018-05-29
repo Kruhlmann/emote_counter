@@ -57,7 +57,7 @@ app.get("/api/channel_exists/:channel", function(req, res){
 
 // Start express server on port 3000
 var server = app.listen(3000, function(){
-    console.log("Server started on port 3000");
+    console.log("Server started on port 3000".underline.red);
 });
 
 // Establish database connection
