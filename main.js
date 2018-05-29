@@ -43,14 +43,15 @@ app.get("/api/channel_exists/:channel", function(req, res){
         console.log(content);
         await instance.exit();
     }());
+    // Prepare data for twitch api
+    var key = credentials.client_id;
 
-    request("https://twitch.tv/" + channel, function(error, response, body){
-        
+    request("https://api.twitch.tv/kraken/channels/" + channel, function(error, response, body){
+         
         res.json({
             "error": error,
             "status": response.statusCode,
-            "channel_exists": !body.includes(magic),
-            "body": body
+            "channel_exists": error,
         });
     });
 });
