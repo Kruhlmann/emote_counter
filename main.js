@@ -24,36 +24,27 @@ app.use(express.static("public"));
 // User interface API
 app.get("/api/channel_exists/:channel", function(req, res){
     var channel = req.params.channel;
-    // This css class is used for the image on twitch channel 404 pages. If it is present the channel does not exist or is banned/suspended.
-    var magic = "tw-svg__asset tw-svg__asset--deadglitch tw-svg__asset--inherit";
     
-    (async function() {
-        const instance = await phantom.create();
-        const page = await instance.createPage();
-        await page.on("onResourceRequested", function(requestData) {
-            console.info('Requesting', requestData.url)
-        });
-
-        await page.on("onLoadFinished", function(status){})
-
-        const status = await page.open('https://twitch.tv/' + channel);
-        console.log(status);
-
-        const content = await page.property('content');
-        console.log(content);
-        await instance.exit();
-    }());
     // Prepare data for twitch api
-    var key = credentials.client_id;
-
-    request("https://api.twitch.tv/kraken/channels/" + channel, function(error, response, body){
-         
+    var opt = {
+        url: "https://api.twitch.tv/kraken/channels/" + channel,
+        headers: {
+            "Client-ID": credentials.client_id 
+        }
+    }
+    // Create callback
+    var cbk = function(error, response, body){
+        if(error) throw error;
         res.json({
             "error": error,
             "status": response.statusCode,
-            "channel_exists": error,
+            "channel_exists": (!error && response.statusCode == 200)
         });
-    });
+    }
+
+    console.log(opt)
+
+    request(opt, cbk);
 });
 
 // Start express server on port 3000
