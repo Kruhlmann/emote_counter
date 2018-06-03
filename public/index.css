@@ -2,8 +2,21 @@
     padding: 8px;
     width: 400px;
     margin: 10px;
+    border: 3px solid #dddddd;
+}
+
+.channel-input:focus {
+    outline: none;
 }
 
 .top-title {
     margin-top: 15px;
+}
+
+.channel-input-valid {
+    border: 3px solid #ddffdd;
+}
+
+.channel-input-invalid {
+    border: 3px solid #ffdddd;
 }

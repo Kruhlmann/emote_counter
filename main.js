@@ -1,5 +1,5 @@
 "use strict";
-// Packages
+// NPM packages
 const TwitchBot = require('twitch-bot');
 const fs = require("fs");
 const request = require("request");
@@ -12,40 +12,36 @@ const phantom = require("phantom");
 
 // Local packages
 const parser = require("./parser");
-
-// User defined consts
 const credentials = require("./credentials");
-const bttv_api_path = "https://twitch.center/customapi/bttvemotes?channel=";
 
 // Create express app for serving user interface
 var app = express();
-// User interface
-app.use(express.static("public"));
-// User interface API
-app.get("/api/channel_exists/:channel", function(req, res){
-    var channel = req.params.channel;
-    
-    // Prepare data for twitch api
-    var opt = {
+
+// Validates whether a Twitch channel exists
+// @param {String} channel - Name of the channel to validate
+// @param {Function} cbx - Callback to call. Will be passed (error, status, channel_exists) as parameters
+var channel_exists = function (channel, cbk){
+    // Request options
+    var options = {
         url: "https://api.twitch.tv/kraken/channels/" + channel,
         headers: {
-            "Client-ID": credentials.client_id 
+            "Client-ID": credentials.client_id
         }
-    }
-    // Create callback
-    var cbk = function(error, response, body){
-        if(error) throw error;
-        res.json({
+    };
+    // Request data from Twitch API
+    request(options, function(error, response, body){
+        // Once request finishes call the supplied callback function.
+        cbk ({
             "error": error,
             "status": response.statusCode,
             "channel_exists": (!error && response.statusCode == 200)
         });
-    }
+    });
+}
 
-    console.log(opt)
+// User interface static content.
+app.use(express.static("public"));
 
-    request(opt, cbk);
-});
 
 // Start express server on port 3000
 var server = app.listen(3000, function(){
@@ -61,6 +57,51 @@ var conn = mysql.createConnection({
 });
 conn.connect();
 
+
+// User interface API.
+
+// Responds to requests about channel existance.
+// @param {String} channel - The channel to check existance for.
+app.get("/api/channel_exists/:channel", function(req, res){
+    // Pipe the JSON result into res.json when request completes
+    // It's not possible to use res.json as the callback as the app var is not in that scope
+    channel_exists(req.params.channel, function(result){
+        res.json(result);
+    });
+});
+
+// Responds to requests to register a Twitch channel.
+// @param {String} channel - The name of the channel to register.
+app.get("/api/channel/register/:channel", function(req, res){
+    // Firstly, check if the channel is a valid twitch channel.
+    channel_exists(req.params.channel, function(result){
+        if(result.channel_exists == true){
+            // Determine if channel is already being tracked
+            // TODO: sqlescape
+            conn.query("SELECT * FROM tracked_channels WHERE name='" + req.params.channel + "'", function(error, result, fields){
+                // Error: SQL error.
+                // TODO: User should not see sql errors
+                if(error) res.json({error: error, success: false});
+                else {
+                    // Error: Channel already registered.
+                    if(result.length > 0) res.json({error: "Channel " + req.params.channel + " is already registered.", success: false});
+                    else {
+                        // TODO: sqlescape
+                        conn.query("INSERT INTO tracked_channels (name) VALUES ('" + req.params.channel + "')", function(_error, _result, _fields){
+                            // Error: SQL error.
+                            // TODO: Users should not see sql errors.
+                            if(_error) res.json({error: _error, success: false});
+                            else res.json({error: "", success: true});
+                        });
+                    }
+                }
+            });
+        }else{
+            res.json({error: req.params.channel + " is not a valid Twitch channel.", success: false});
+        }
+    });
+});
+
 // Simplified function for making database queries, which do not require results
 // @param {String} sql - Query string to perform.
 // @param {MySQLConnection} conn - The database connection object.
@@ -69,8 +110,9 @@ var q = function(sql, conn, supress) {
     return conn.query(sql, function(error, results, fields) {
         if (error && !supress) {
             console.log("An error occured with the following SQL query: " + sql);
-            throw error;
+            return {error: error, result: undefined};
         }
+        return {error: undefined, result: results}
     });
 }
 
